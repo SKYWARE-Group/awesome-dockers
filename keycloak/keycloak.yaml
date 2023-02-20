@@ -1,0 +1,47 @@
+version: '3'
+
+# Author: Mikhail Kalatchev
+# Company: SKYWARE Group
+# Repo: https://github.com/SKYWARE-Group/awesome-dockers
+
+networks:
+  kc-dev-net:
+    driver: bridge
+
+services:
+  keycloak_db:
+    image: postgres:latest
+    container_name: pg-kc-dev
+    hostname: pg
+    volumes:
+      - /some/location:/var/lib/postgresql/data # Set your own volume location.  <<<
+    environment:
+      POSTGRES_PASSWORD: postgres-password-here # Username will be 'postgres'. Set the password. <<<
+    networks:
+      - kc-dev-net
+    ports:
+      - "127.0.0.1:5999:5432" # Do not expose port to external world, use DNAT instead. Check for available port.  <<<
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: kc-dev
+    hostname: kc
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: 'jdbc:postgresql://pg-kc-dev/postgres' # Note "container_name: pg-kc-dev" in keycloak_db
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres-password-here # Note POSTGRES_PASSWORD in keycloak_db <<<
+      KC_HEALTH_ENABLED: 'true'
+      KC_PROXY: passthrough # Apache httpd reverse proxy
+      KEYCLOAK_ADMIN: admin 
+      KEYCLOAK_ADMIN_PASSWORD: keycloak-passord-here # Set your intial password here. <<<
+    networks:
+      - kc-dev-net
+    ports:
+      - "127.0.0.1:8999:8080" # Do not expose port to external world, use reverse proxy instead. Check for available port. <<<
+    command: 
+      - start-dev
+    restart: unless-stopped
+    depends_on:
+      - keycloak_db
